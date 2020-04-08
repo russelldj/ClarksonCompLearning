@@ -4,6 +4,9 @@ import numpy as np
 from sklearn.neural_network import MLPClassifier
 import tensorflow as tf
 from tensorflow import keras
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Activation
+
 
 TRAIN_DATA = "../data/train_data.txt"
 TRAIN_LABELS = "../data/train_label.txt"
@@ -39,85 +42,43 @@ coefs = classifier.coefs_
 write_out(coefs)
 
 
-# the tensorflow section
 # drawn heavily from https://towardsdatascience.com/introduction-to-multilayer-neural-networks-with-tensorflows-keras-api-abf4f813959
-NUM_HIDDEN = 20
+NUM_HIDDEN = 40
 NUM_INPUTS = train_data.shape[1]
-NUM_OUTPUTS = 2
+NUM_OUTPUTS = 1
+
 
 def shift(label):
-    return ((label + 1) / 2).astype(int)
+    shifted = ((label + 1) / 2).astype(int)
+    return np.expand_dims(shifted, 1)
+
 
 def convert_to_onehot(label):
     shifted = shift(label)
     return keras.utils.to_categorical(shifted), shifted
 
+
 train_labels_onehot, train_labels_shifted = convert_to_onehot(train_labels)
 test_labels_onehot, test_labels_shifted = convert_to_onehot(test_labels)
 
 # process the data so it conforms to the one-hot requirement
-model = keras.models.Sequential()
+model = Sequential()
+model.add(Dense(NUM_HIDDEN, activation='relu', input_dim=NUM_INPUTS))
+model.add(Dense(1, activation='sigmoid'))
+model.compile(optimizer='rmsprop',
+              loss='binary_crossentropy',
+              metrics=['accuracy'])
 
-# add input layer
-model.add(keras.layers.Dense(
-    units=NUM_HIDDEN,
-    input_dim=NUM_INPUTS,
-    bias_initializer='zeros',
-    activation='tanh')
-)
-model.add(
-    keras.layers.Dense(
-        units=NUM_OUTPUTS,
-        input_dim=NUM_HIDDEN,
-        bias_initializer='zeros',
-        activation='softmax')
-    )
-
-# define SGD optimizer
-sgd_optimizer = keras.optimizers.SGD(
-    lr=0.001, decay=1e-7, momentum=0.9
-)
-# compile model
-model.compile(
-    optimizer=sgd_optimizer,
-    loss='categorical_crossentropy'
-)
-# train model
-history = model.fit(
-    train_data, train_labels_onehot,
-    batch_size=64, epochs=50,
-    verbose=1, validation_split=0.1
-)
+history = model.fit(train_data, train_labels_shifted, epochs=100, batch_size=32, validation_split=0.1)
 
 # calculate training accuracy
 train_labels_pred = model.predict_classes(train_data, verbose=0)
 correct_preds = np.sum(train_labels_shifted == train_labels_pred, axis=0)
 train_acc = correct_preds / train_labels_shifted.shape[0]
-
 print("Training accuracy: {}".format(train_acc))
-pdb.set_trace()
 
 # calculate testing accuracy
-y_test_pred = model.predict_classes(X_test_centered, verbose=0)
-correct_preds = np.sum(y_test == y_test_pred, axis=0)
-test_acc = correct_preds / y_test.shape[0]
-
-print(f'Test accuracy: {(test_acc * 100):.2f}')
-
-
-#THRESHOLDS = np.linspace(0.1, 0.9, 9)
-#print(THRESHOLDS)
-#num_samples = len(train)
-#for threshold in THRESHOLDS:
-#    indices = np.random.choice(num_samples, int(np.floor(threshold * num_samples)), replace=False)
-#    train_sample = train[indices]
-#    train_labels = labels[indices]
-#exit()
-#model = tf.keras.models.Sequential([
-#  tf.keras.layers.Dense(128, activation='relu'),
-#  tf.keras.layers.Dense(2)
-#])
-#
-#print(model)
-#pdb.set_trace()
-#model()
+test_labels_pred = model.predict_classes(test_data, verbose=0)
+correct_preds = np.sum(test_labels_shifted == test_labels_pred, axis=0)
+test_acc = correct_preds / test_labels_shifted.shape[0]
+print("Test accuracy {}".format(test_acc))
