@@ -14,10 +14,10 @@ TEST_DATA = "../data/test_data.txt"
 TEST_LABELS = "../data/test_label.txt"
 
 SKLEARN_PRED = "scikit_learn_preds.txt"
+KERAS_PRED   = "keras_preds.txt"
 
-def write_out(coefs, output_file="weights.txt"):
-    first_layer, second_layer = coefs
-    m = second_layer.shape[0]
+def write_out(first_layer, second_layer, output_file="weights.txt"):
+    m = second_layer.shape[1]
     with open(output_file, 'w') as fileh:
         fileh.write("{:d}\n".format(m))
         np.savetxt(fileh, second_layer.transpose())
@@ -39,7 +39,7 @@ print("Training accuracy was : {}, testing accuracy was : {}".format(training_ac
 preds = classifier.predict(test_data)
 np.savetxt(SKLEARN_PRED, np.expand_dims(preds, 0), fmt="%d")
 coefs = classifier.coefs_
-write_out(coefs)
+write_out(coefs[1], coefs[0])
 
 
 # drawn heavily from https://towardsdatascience.com/introduction-to-multilayer-neural-networks-with-tensorflows-keras-api-abf4f813959
@@ -69,7 +69,7 @@ model.compile(optimizer='rmsprop',
               loss='binary_crossentropy',
               metrics=['accuracy'])
 
-history = model.fit(train_data, train_labels_shifted, epochs=100, batch_size=32, validation_split=0.1)
+history = model.fit(train_data, train_labels_shifted, epochs=10, batch_size=32, validation_split=0.1)
 
 # calculate training accuracy
 train_labels_pred = model.predict_classes(train_data, verbose=0)
@@ -82,3 +82,8 @@ test_labels_pred = model.predict_classes(test_data, verbose=0)
 correct_preds = np.sum(test_labels_shifted == test_labels_pred, axis=0)
 test_acc = correct_preds / test_labels_shifted.shape[0]
 print("Test accuracy {}".format(test_acc))
+np.savetxt(KERAS_PRED, 2 * test_labels_pred.transpose() - 1, fmt="%d")
+
+weights = model.get_weights()
+
+write_out(weights[2], weights[0], "Keras.csv")
