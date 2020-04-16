@@ -14,7 +14,8 @@ TEST_DATA = "../data/test_data.txt"
 TEST_LABELS = "../data/test_label.txt"
 
 SKLEARN_PRED = "scikit_learn_preds.txt"
-KERAS_PRED   = "keras_preds.txt"
+KERAS_PRED = "keras_preds.txt"
+
 
 def write_out(first_layer, second_layer, output_file="weights.txt"):
     m = second_layer.shape[1]
@@ -22,6 +23,7 @@ def write_out(first_layer, second_layer, output_file="weights.txt"):
         fileh.write("{:d}\n".format(m))
         np.savetxt(fileh, second_layer.transpose())
         np.savetxt(fileh, first_layer.transpose())
+
 
 train_data = np.loadtxt(TRAIN_DATA)
 train_labels = np.loadtxt(TRAIN_LABELS)
@@ -33,8 +35,9 @@ test_labels = np.fromstring(line[1:-1], sep=', ')
 classifier = MLPClassifier(hidden_layer_sizes=(20,), activation='relu')
 classifier.fit(train_data, train_labels)
 training_accuracy = classifier.score(train_data, train_labels)
-testing_accuracy  = classifier.score(test_data, test_labels)
-print("Training accuracy was : {}, testing accuracy was : {}".format(training_accuracy, testing_accuracy))
+testing_accuracy = classifier.score(test_data, test_labels)
+print("Training accuracy was : {}, testing accuracy was : {}".format(
+    training_accuracy, testing_accuracy))
 
 preds = classifier.predict(test_data)
 np.savetxt(SKLEARN_PRED, np.expand_dims(preds, 0), fmt="%d")
@@ -69,7 +72,8 @@ model.compile(optimizer='rmsprop',
               loss='binary_crossentropy',
               metrics=['accuracy'])
 
-history = model.fit(train_data, train_labels_shifted, epochs=10, batch_size=32, validation_split=0.1)
+history = model.fit(train_data, train_labels_shifted,
+                    epochs=10, batch_size=32, validation_split=0.1)
 
 # calculate training accuracy
 train_labels_pred = model.predict_classes(train_data, verbose=0)
