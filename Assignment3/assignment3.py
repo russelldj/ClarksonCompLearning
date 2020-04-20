@@ -24,12 +24,6 @@ digits = datasets.load_digits()
 
 
 # Reshape, normalize
-n_samples = len(digits.images)
-data = digits.images.reshape(n_samples, -1)
-data = data / 255
-
-X_train, X_test, y_train, y_test = train_test_split(
-    data, digits.target, test_size=0.2, random_state=42)
 
 """
 clf = tree.DecisionTreeClassifier()
@@ -82,18 +76,24 @@ class AdaBoost():
     seems to present an effective mutliclass algorithm
     """
 
-    def __init__(self, num_classes=10):
-        all_data = datasets.load_digits()  # all_data is actually a dict
-        features = all_data['data']
-        labels = all_data['target']
+    def __init__(self, train_features=None, train_labels=None, num_classes=10):
 
-        num_samples = len(features)
-        features = features.reshape(num_samples, -1)  # flatten
-        normalized_features = features / 255
+        self.train_features = train_features
+        if train_features is None or train_labels is None:
+            digits = datasets.load_digits()
+            features = digits["data"]
+            labels = digits["target"]
+            num_samples = len(features)
+            features = features.reshape(num_samples, -1)  # flatten
+            normalized_features = features / 255
+            self.features = normalized_features
+            self.labels = labels
+        else:
+            self.features = train_features  # noramalize
+            self.labels = train_labels
 
         self.num_classes = num_classes
-        self.features = normalized_features  # noramalize
-        self.labels = labels
+        num_samples = len(self.labels)
         self.weights = np.ones((num_samples,)) / \
             num_samples  # n weights of 1 / n
         self.is_boolean = False
@@ -109,21 +109,6 @@ class AdaBoost():
         self.labels = labels
         num_points = len(labels)
         self.weights = np.ones((num_points,)) / num_points
-
-    def set_data_boolean(self):
-        """
-        transform the data so that half of the classes are now labeled -1
-        and the other half are 1
-        """
-        unique_labels = np.unique(self.labels)
-        half_num_labels = int(len(unique_labels) / 2)
-        first_half_labels = unique_labels[:half_num_labels]
-        # compute which samples have the first two labels
-        samples_with_first_half_labels = np.isin(self.labels,
-                                                 first_half_labels)
-        self.labels[samples_with_first_half_labels] = 1
-        self.labels[np.logical_not(samples_with_first_half_labels)] = -1
-        self.is_boolean = True
 
     def boost(self, learner, M=1000):
         """
@@ -151,13 +136,17 @@ class AdaBoost():
 
         print("Boosting complete")
         plt.plot(unweighted_errors)
-        plt.xlabel("iteration")
+        plt.xlabel("Iteration")
         plt.ylabel("The erorr rate")
+        filename = "ErrorRateOverTime.png"
+        plt.savefig(filename)
+        print("figure written to {}".format(filename))
         plt.pause(2)
 
-        self.predict_final_model(self.features)
-
-    def predict_final_model(self, features, evaluate_accuracy=True):
+    def predict_final_model(self, features, labels=None):
+        """
+        If labels are not none, the accuracy will be computed
+        """
         num_samples = len(features)
         per_class_predictions = np.zeros((num_samples, self.num_classes))
         samples_indices = np.arange(0, num_samples, 1)
@@ -169,12 +158,11 @@ class AdaBoost():
             # starting at 0
             per_class_predictions[samples_indices, preds] += alpha
         pred_labels = np.argmax(per_class_predictions, axis=1)
-        print(pred_labels)
 
-        if evaluate_accuracy:
-            correct = np.equal(pred_labels, self.labels).astype(int)
+        if labels is not None:
+            correct = np.equal(pred_labels, labels).astype(int)
             num_correct = np.sum(correct)
-            num_samples = len(self.labels)
+            num_samples = len(labels)
             accuracy = num_correct / num_samples
             print("The accuracy was : {} on {} samples".format(accuracy,
                                                                num_samples))
@@ -208,9 +196,15 @@ class AdaBoost():
         self.weights /= np.sum(self.weights)  # normalize
 
 
+n_samples = len(digits.images)
+data = digits.images.reshape(n_samples, -1)
+data = data / 255
+
+X_train, X_test, y_train, y_test = train_test_split(
+    data, digits.target, test_size=0.2, random_state=42)
+
 my_decision_tree = tree.DecisionTreeClassifier(
     max_depth=2)  # Try to make it worse, it was too good
-#my_decision_tree = DecisionTreeWrapper()
-my_adaboost = AdaBoost()
-# my_adaboost.set_data_boolean()
-my_adaboost.boost(my_decision_tree, M=200)
+my_adaboost = AdaBoost(X_train, y_train)
+my_adaboost.boost(my_decision_tree, M=500)
+my_adaboost.predict_final_model(X_test, y_test)
