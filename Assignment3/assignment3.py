@@ -5,8 +5,9 @@ from sklearn import tree
 from sklearn.base import clone
 from sklearn.model_selection import train_test_split
 import sklearn.metrics as metrics
+from sklearn.ensemble import AdaBoostClassifier
+from sklearn.svm import SVC
 import pdb
-print(__doc__)
 
 
 # Code source: Gaël Varoquaux
@@ -41,7 +42,8 @@ class DecisionTreeWrapper(object):
 
     def fit(self, X, y, weights=None):
         """
-        Trains a decision tree on MNIST digit dataset
+        Trains a decision tree on MNIST digit dataset.
+
         X: 3D array, training set images
         y: vector, corresponding labels
         weights: vector, corresponding weights
@@ -135,6 +137,7 @@ class AdaBoost():
             self.update_weights(incorrect_indicator, alpha)
 
         print("Boosting complete")
+        plt.clf()
         plt.plot(unweighted_errors)
         plt.xlabel("Iteration")
         plt.ylabel("The erorr rate")
@@ -164,9 +167,8 @@ class AdaBoost():
             num_correct = np.sum(correct)
             num_samples = len(labels)
             accuracy = num_correct / num_samples
-            print("The accuracy was : {} on {} samples".format(accuracy,
-                                                               num_samples))
-
+            print("Our implementation's accuracy was : {} on {} samples".format(accuracy,
+                                                                                num_samples))
         return pred_labels
 
     def compute_error(self, learner):
@@ -203,8 +205,33 @@ data = data / 255
 X_train, X_test, y_train, y_test = train_test_split(
     data, digits.target, test_size=0.2, random_state=42)
 
-my_decision_tree = tree.DecisionTreeClassifier(
+NUM_ESTIMATORS = 50
+#  experiments, decision tree
+print("Decision tree tests")
+decision_tree = tree.DecisionTreeClassifier(
     max_depth=2)  # Try to make it worse, it was too good
 my_adaboost = AdaBoost(X_train, y_train)
-my_adaboost.boost(my_decision_tree, M=500)
+my_adaboost.boost(decision_tree, M=NUM_ESTIMATORS)
 my_adaboost.predict_final_model(X_test, y_test)
+
+abc = AdaBoostClassifier(
+    n_estimators=NUM_ESTIMATORS, base_estimator=decision_tree, learning_rate=1)
+model = abc.fit(X_train, y_train)
+y_pred = model.predict(X_test)
+print("Accuracy for scikit learn: {}".format(
+    metrics.accuracy_score(y_test, y_pred)))
+
+# svm
+print("\nSVC tests")
+svc = SVC(probability=True, kernel='linear')
+
+my_adaboost = AdaBoost(X_train, y_train)
+my_adaboost.boost(svc, M=NUM_ESTIMATORS)
+my_adaboost.predict_final_model(X_test, y_test)
+
+abc = AdaBoostClassifier(
+    n_estimators=NUM_ESTIMATORS, base_estimator=svc, learning_rate=1)
+model = abc.fit(X_train, y_train)
+y_pred = model.predict(X_test)
+print("Accuracy for scikit learn: {}".format(
+    metrics.accuracy_score(y_test, y_pred)))
