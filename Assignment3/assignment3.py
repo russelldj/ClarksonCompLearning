@@ -82,7 +82,7 @@ class AdaBoost():
     seems to present an effective mutliclass algorithm
     """
 
-    def __init__(self):
+    def __init__(self, num_classes=10):
         all_data = datasets.load_digits()  # all_data is actually a dict
         features = all_data['data']
         labels = all_data['target']
@@ -91,6 +91,7 @@ class AdaBoost():
         features = features.reshape(num_samples, -1)  # flatten
         normalized_features = features / 255
 
+        self.num_classes = num_classes
         self.features = normalized_features  # noramalize
         self.labels = labels
         self.weights = np.ones((num_samples,)) / \
@@ -141,8 +142,8 @@ class AdaBoost():
             epsilon, incorrect_indicator, unweighted_error = self.compute_error(
                 current_learner)
             # small number is added so we don't get division by zero
-            alpha = 1 / 2 * np.log((1 - epsilon) /
-                                   (epsilon + self.SMALL_NUMBER))
+            alpha = np.log((1 - epsilon) /
+                           (epsilon + self.SMALL_NUMBER)) + np.log(self.num_classes - 1)
             self.alphas[m] = alpha
             unweighted_errors[m] = unweighted_error
             self.hypotheses.append(current_learner)
@@ -152,33 +153,23 @@ class AdaBoost():
         plt.plot(unweighted_errors)
         plt.xlabel("iteration")
         plt.ylabel("The erorr rate")
-        plt.show()
+        plt.pause(2)
 
         self.predict_final_model(self.features)
 
     def predict_final_model(self, features, evaluate_accuracy=True):
-        all_weighted_preds = []
+        num_samples = len(features)
+        per_class_predictions = np.zeros((num_samples, self.num_classes))
+        samples_indices = np.arange(0, num_samples, 1)
+
         # iterate over the two lists at the same time
         for hypothesis, alpha in zip(self.hypotheses, self.alphas):
             preds = hypothesis.predict(features)
-            weighted_preds = preds * alpha
-            all_weighted_preds.append(weighted_preds)
-        # convert to numpy array for easier math
-        all_weighted_preds = np.asarray(all_weighted_preds)
-        pred_sample_sum_preds = np.sum(all_weighted_preds, axis=0)
-        print(pred_sample_sum_preds.shape)
-
-        def sign(x):
-            """
-            acts elementwise on x
-            if x > 0 -> 1
-            else -> -1
-            """
-            is_positive = (x > 0).astype(int)
-            labels = (is_positive * 2) - 1
-            return labels
-
-        pred_labels = sign(pred_sample_sum_preds)
+            # Assumes that class labels are distinct contigious integers
+            # starting at 0
+            per_class_predictions[samples_indices, preds] += alpha
+        pred_labels = np.argmax(per_class_predictions, axis=1)
+        print(pred_labels)
 
         if evaluate_accuracy:
             correct = np.equal(pred_labels, self.labels).astype(int)
@@ -221,7 +212,5 @@ my_decision_tree = tree.DecisionTreeClassifier(
     max_depth=2)  # Try to make it worse, it was too good
 #my_decision_tree = DecisionTreeWrapper()
 my_adaboost = AdaBoost()
-my_adaboost.set_data_boolean()
-my_adaboost.boost(my_decision_tree, 200)
-features = my_adaboost.get_features()
-my_adaboost.predict_final_model(features)
+# my_adaboost.set_data_boolean()
+my_adaboost.boost(my_decision_tree, M=200)
