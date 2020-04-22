@@ -115,7 +115,7 @@ class NN():
         for size in self.sizes:
             print(size)
 
-    def compute_matrix_backprop(self, label, xs, ys, alpha=0.001):
+    def compute_matrix_backprop(self, label, xs, ys, alpha=1):
         """
         taken heavily from https://sudeepraja.github.io/Neural
 
@@ -158,19 +158,21 @@ class NN():
             grad_matrix = np.matmul(sigma_transpose, x)
             if grad_matrix.shape != self.layers[i].weights.shape:
                 raise AssertionError("Something is wrong")
-            self.layers[i].weights -= alpha * grad_matrix
+            self.layers[i].weights += alpha * \
+                grad_matrix  # why is this positive
 
-    def train(self, features, labels):
-        for (feature, label) in zip(features, labels):
-            pred, xs, ys = self.forward(feature)
-            if len(pred) != 1:
-                raise Exception(
-                    "The length of the prediction was expected to be one")
-            loss = 1/2.0*(pred[0] - label)**2
-            print("y_pred : {}, y : {}, loss : {}".format(pred, label, loss))
-            self.compute_matrix_backprop(label, xs, ys)
-        self.compute_backprop()
+    def train(self, features, labels, num_iterations=100):
+        for iteration in range(num_iterations):
+            for (feature, label) in zip(features, labels):
+                pred, xs, ys = self.forward(feature)
+                if len(pred) != 1:
+                    raise Exception(
+                        "The length of the prediction was expected to be one")
+                loss = 1/2.0*(pred[0] - label)**2
+                print("iteration : {}, y_pred : {}, y : {}, loss : {}".format(
+                    iteration, pred, label, loss))
+                self.compute_matrix_backprop(label, xs, ys)
 
 
 net = NN([3, 5, 8, 1])
-net.train([[1, 1, 1], [2, 2, 2]], [0.5, -0.5])
+net.train([[2, 2, 2], [0, 1, 2]], [0.5, 0.1])
