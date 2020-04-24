@@ -1,134 +1,108 @@
-from tensorflow.keras import backend
+'''Trains a simple convnet on the MNIST dataset.
+Gets to 99.25% test accuracy after 12 epochs
+(there is still a lot of margin for parameter tuning).
+16 seconds per epoch on a GRID K520 GPU.
+'''
 
-from keras.datasets import cifar10, cifar100
+from __future__ import print_function
+import keras
+from keras.datasets import mnist
+from keras.models import Sequential
+from keras.layers import Dense, Dropout, Flatten
+from keras.layers import Conv2D, MaxPooling2D
+from keras import backend as K
 
-from tensorflow.keras import Sequential
-from tensorflow.keras.layers import Dense, Conv2D, Flatten, MaxPooling2D
-
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from keras.utils import to_categorical
-
+from sklearn.model_selection import train_test_split
 import pdb
-import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 
-CIFAR100_LABELS_LIST = [
-    'apple', 'aquarium_fish', 'baby', 'bear', 'beaver', 'bed', 'bee', 'beetle',
-    'bicycle', 'bottle', 'bowl', 'boy', 'bridge', 'bus', 'butterfly', 'camel',
-    'can', 'castle', 'caterpillar', 'cattle', 'chair', 'chimpanzee', 'clock',
-    'cloud', 'cockroach', 'couch', 'crab', 'crocodile', 'cup', 'dinosaur',
-    'dolphin', 'elephant', 'flatfish', 'forest', 'fox', 'girl', 'hamster',
-    'house', 'kangaroo', 'keyboard', 'lamp', 'lawn_mower', 'leopard', 'lion',
-    'lizard', 'lobster', 'man', 'maple_tree', 'motorcycle', 'mountain', 'mouse',
-    'mushroom', 'oak_tree', 'orange', 'orchid', 'otter', 'palm_tree', 'pear',
-    'pickup_truck', 'pine_tree', 'plain', 'plate', 'poppy', 'porcupine',
-    'possum', 'rabbit', 'raccoon', 'ray', 'road', 'rocket', 'rose',
-    'sea', 'seal', 'shark', 'shrew', 'skunk', 'skyscraper', 'snail', 'snake',
-    'spider', 'squirrel', 'streetcar', 'sunflower', 'sweet_pepper', 'table',
-    'tank', 'telephone', 'television', 'tiger', 'tractor', 'train', 'trout',
-    'tulip', 'turtle', 'wardrobe', 'whale', 'willow_tree', 'wolf', 'woman',
-    'worm'
-]
+batch_size = 128
+num_classes = 2
+epochs = 1
 
-TIGER_ID = CIFAR100_LABELS_LIST.index('tiger')
-BUS_ID = CIFAR100_LABELS_LIST.index('bus')
-print(TIGER_ID, BUS_ID)
+# input image dimensions
+img_rows, img_cols = 28, 28
+
+DRAGON_NAME = "data/full_numpy_bitmap_dragon.npy"
+TIGER_NAME = "data/full_numpy_bitmap_tiger.npy"
+SQUIRREL_NAME = "data/full_numpy_bitmap_squirrel.npy"
 
 
-def retrainCNN_470():
-    # load in the data
-    (x_train, y_train), (testSet, testLabels) = cifar10.load_data()
-
-    # split the data
-    y_train = to_categorical(y_train)
-    testLabels = to_categorical(testLabels)
-
-    """ Create the model
-    """
-    model = Sequential()
-    # create a 64 channel convoltional filter with size 3x3
-    model.add(Conv2D(32, kernel_size=3, activation='relu',
-                     input_shape=(32, 32, 3)))
-    # create a 64 channel convoltional filter with size 3x3
-    model.add(Conv2D(32, kernel_size=3, activation='relu'))
-    # create a 3x3 filter
-    model.add(Conv2D(64, kernel_size=3, activation='relu'))
-    # create a max pooling layer with a 3x3 receptive field
-    model.add(MaxPooling2D(pool_size=3))
-    model.add(Conv2D(128, kernel_size=3, activation='relu'))
-    # create a max pooling layer with a 3x3 receptive field
-    model.add(MaxPooling2D(pool_size=3))
-    model.add(Flatten())  # Flatten to put it in the format for the dense layer
-    model.add(Dense(60, activation='relu'))  # dense layer with softmax
-    model.add(Dense(30, activation='relu'))  # dense layer with softmax
-    model.add(Dense(10, activation='softmax'))  # dense layer with softmax
-    # compile the model into one which can be trained
-    model.compile(optimizer='adam',
-                  loss='categorical_crossentropy', metrics=['accuracy'])
-
-    model.fit(x_train, y_train, validation_data=(
-        testSet, testLabels), epochs=5, verbose=1)
-    results = model.evaluate(testSet, testLabels, verbose=0)
-    print("The test accuracy on CIFAR10 was {}".format(results[1]))
-
-    """ load in the fine tuning data
-    """
-    (x_train100, y_train100), (testSet100, testLabels100) = cifar100.load_data()
-
-    def convert_to_subset(data, labels, class_labels):
-        in_each_class = [(labels == new_class_label)
-                         for new_class_label in class_labels]
-        in_new_classes = np.squeeze(np.sum(np.asarray(in_each_class), axis=0))
-        in_new_classes = in_new_classes.astype(bool)
-        updated_data = data[in_new_classes, :]
-        updated_labels = labels[in_new_classes]
-        for i, class_label in enumerate(class_labels):
-            updated_labels[updated_labels == class_label] = i
-        updated_labels = to_categorical(updated_labels)
-        return updated_data, updated_labels
-
-    tb_x_train, tb_y_train = convert_to_subset(
-        x_train100, y_train100, [TIGER_ID, BUS_ID])
-    tb_x_test, tb_y_test = convert_to_subset(
-        testSet100, testLabels100, [TIGER_ID, BUS_ID])
-
-    """create the new model
-    """
-    old_weights = model.get_weights()
-    results_for_all_runs = []
-    trainable = [[False, False, False, False, False, False, False, False, False],
-                 [False, False, False, False, False, False, False, False, True],
-                 [False, False, False, False, False, False, False, True, True],
-                 [False, False, False, False, True, False, False, True, True],
-                 [False, False, True, False, True, False, False, True, True],
-                 [False, True, True, False, True, False, False, True, True],
-                 ]
-
-    for i in range(len(trainable)):
-        model.set_weights(old_weights)
-
-        bus_tiger_model = Sequential()
-        for j, layer in enumerate(model.layers[:-1]):
-            layer.trainable = trainable[i][j]
-            bus_tiger_model.add(layer)  # , trainable=is_trainable)
-
-        bus_tiger_model.add(Dense(2, activation='softmax'))
-        bus_tiger_model.compile(
-            optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
-
-        bus_tiger_model.fit(tb_x_train, tb_y_train, epochs=10, verbose=0)
-        results = bus_tiger_model.evaluate(tb_x_test, tb_y_test, verbose=0)
-        results_for_all_runs.append(results[1])
-        print("The finetuned test accuracy on bus and tiger is {} with {} retrained layers".format(
-            results[1], i))
-
-    plt.plot(np.arange(len(results_for_all_runs)) + 1, results_for_all_runs)
-    plt.title(
-        "Plot of accuracy versus number of trained layers, including the final one")
-    plt.xlabel("Number of trained layers")
-    plt.ylabel("Accuracy on test set")
-    plt.show()
+def load_all(filenames):
+    all_labels = []
+    all_features = []
+    for i, filename in enumerate(filenames):
+        features = load_npy_as_keras_data(filename)
+        num_samples = features.shape[0]
+        labels = np.ones((num_samples,)) * i
+        all_features.append(features)
+        all_labels.append(labels)
+    all_labels = np.hstack(all_labels).astype(int)
+    all_features = np.concatenate(all_features, axis=0)
+    X_train, X_test, y_train, y_test = train_test_split(
+        all_features, all_labels, test_size=0.2, random_state=42, shuffle=True)
+    X_train = np.expand_dims(X_train, 3)
+    X_test = np.expand_dims(X_test, 3)
+    return (X_train, y_train), (X_test, y_test)
 
 
-retrainCNN_470()
+def load_npy_as_keras_data(file, vis=False):
+    data = np.load(file)
+    num_samples, num_features = data.shape
+    width = int(np.sqrt(num_features))
+    data = np.reshape(data, (num_samples, width, width))
+    if vis:
+        for i in range(10):
+            plt.imshow(data[i, :, :])
+            plt.pause(3)
+    return data
+
+
+# the data, split between train and test sets
+# (x_train, y_train), (x_test, y_test) = mnist.load_data()
+(x_train, y_train), (x_test, y_test) = load_all(
+    [DRAGON_NAME, TIGER_NAME, SQUIRREL_NAME][:2])
+#   x_train = x_train.reshape(x_train.shape[0], img_rows, img_cols, 1)
+#   x_test = x_test.reshape(x_test.shape[0], img_rows, img_cols, 1)
+input_shape = (img_rows, img_cols, 1)
+
+x_train = x_train.astype('float32')
+x_test = x_test.astype('float32')
+x_train /= 255
+x_test /= 255
+print('x_train shape:', x_train.shape)
+print(x_train.shape[0], 'train samples')
+print(x_test.shape[0], 'test samples')
+
+pdb.set_trace()
+# convert class vectors to binary class matrices
+y_train = keras.utils.to_categorical(y_train, num_classes)
+y_test = keras.utils.to_categorical(y_test, num_classes)
+
+model = Sequential()
+model.add(Conv2D(32, kernel_size=(3, 3),
+                 activation='relu',
+                 input_shape=input_shape))
+model.add(Conv2D(64, (3, 3), activation='relu'))
+model.add(MaxPooling2D(pool_size=(2, 2)))
+model.add(Dropout(0.25))
+model.add(Flatten())
+model.add(Dense(128, activation='relu'))
+model.add(Dropout(0.5))
+model.add(Dense(num_classes, activation='softmax'))
+
+model.compile(loss=keras.losses.categorical_crossentropy,
+              optimizer=keras.optimizers.Adadelta(),
+              metrics=['accuracy'])
+
+model.fit(x_train, y_train,
+          batch_size=batch_size,
+          epochs=epochs,
+          verbose=1,
+          validation_data=(x_test, y_test))
+preds = model.predict(x_test)
+pred_classes = preds.argmax(axis=-1)
+score = model.evaluate(x_test, y_test, verbose=0)
+print('Test loss:', score[0])
+print('Test accuracy:', score[1])
