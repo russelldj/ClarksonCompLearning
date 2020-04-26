@@ -15,8 +15,7 @@ import pdb
 # License: BSD 3 clause
 
 
-# Load the digits dataset
-digits = datasets.load_digits()
+
 
 # Display the first digit
 #plt.figure(1, figsize=(3, 3))
@@ -196,7 +195,8 @@ class AdaBoost():
         self.weights = self.weights * exponentials
         self.weights /= np.sum(self.weights)  # normalize
 
-
+# Load the digits dataset
+digits = datasets.load_digits()
 n_samples = len(digits.images)
 data = digits.images.reshape(n_samples, -1)
 data = data / 255
@@ -205,8 +205,9 @@ X_train, X_test, y_train, y_test = train_test_split(
     data, digits.target, test_size=0.2, random_state=42)
 
 NUM_ESTIMATORS = 50
+
 #  experiments, decision tree
-print("Decision tree tests")
+print("Digits, Decision tree tests")
 decision_tree = tree.DecisionTreeClassifier(
     max_depth=2)  # Try to make it worse, it was too good
 my_adaboost = AdaBoost(X_train, y_train)
@@ -217,11 +218,11 @@ abc = AdaBoostClassifier(
     n_estimators=NUM_ESTIMATORS, base_estimator=decision_tree, learning_rate=1)
 model = abc.fit(X_train, y_train)
 y_pred = model.predict(X_test)
-print("Accuracy for scikit learn: {}".format(
+print("Digits, Accuracy for scikit learn: {}".format(
     metrics.accuracy_score(y_test, y_pred)))
 
 # svm
-print("\nSVC tests")
+print("\nDigits, SVC tests")
 svc = SVC(probability=True, kernel='linear')
 
 my_adaboost = AdaBoost(X_train, y_train)
@@ -233,4 +234,37 @@ abc = AdaBoostClassifier(
 model = abc.fit(X_train, y_train)
 y_pred = model.predict(X_test)
 print("Accuracy for scikit learn: {}".format(
+    metrics.accuracy_score(y_test, y_pred)))
+
+#Iris Dataset
+iris = datasets.load_iris()
+
+print("\nIris, Decision Tree Tests")
+X_train, X_test, y_train, y_test = train_test_split(
+    iris.data, iris.target, test_size=0.2, random_state=42)
+decision_tree = tree.DecisionTreeClassifier(
+    max_depth=2)  # Try to make it worse, it was too good
+my_adaboost = AdaBoost(X_train, y_train, num_classes = 4)
+my_adaboost.boost(decision_tree, M=NUM_ESTIMATORS)
+my_adaboost.predict_final_model(X_test, y_test)
+
+abc = AdaBoostClassifier(
+    n_estimators=NUM_ESTIMATORS, base_estimator=decision_tree, learning_rate=1)
+model = abc.fit(X_train, y_train)
+y_pred = model.predict(X_test)
+print("Iris, Accuracy for scikit learn: {}".format(
+    metrics.accuracy_score(y_test, y_pred)))
+
+print("\nIris, SVC tests")
+svc = SVC(probability=True, kernel='linear')
+
+my_adaboost = AdaBoost(X_train, y_train)
+my_adaboost.boost(svc, M=NUM_ESTIMATORS)
+my_adaboost.predict_final_model(X_test, y_test)
+
+abc = AdaBoostClassifier(
+    n_estimators=NUM_ESTIMATORS, base_estimator=svc, learning_rate=1)
+model = abc.fit(X_train, y_train)
+y_pred = model.predict(X_test)
+print("Iris, Accuracy for scikit learn: {}".format(
     metrics.accuracy_score(y_test, y_pred)))
