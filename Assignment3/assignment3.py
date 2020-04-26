@@ -70,7 +70,6 @@ print(my_decision_tree)
 
 # https://en.wikipedia.org/wiki/AdaBoost
 
-
 class AdaBoost():
     def __init__(self):
         data = datasets.load_digits())
