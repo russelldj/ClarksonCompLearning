@@ -10,29 +10,6 @@ from sklearn.svm import SVC
 import pdb
 
 
-# Code source: Gaël Varoquaux
-# Modified for documentation by Jaques Grobler
-# License: BSD 3 clause
-
-
-# Load the digits dataset
-digits = datasets.load_digits()
-
-# Display the first digit
-#plt.figure(1, figsize=(3, 3))
-##plt.imshow(digits.images[-1], cmap=plt.cm.gray_r, interpolation='nearest')
-# plt.show()
-
-
-# Reshape, normalize
-
-"""
-clf = tree.DecisionTreeClassifier()
-clf = clf.fit(X_train, y_train)
-y_pred = clf.predict(X_test)
-print(metrics.accuracy_score(y_test, y_pred)) """
-
-
 class DecisionTreeWrapper(object):
     """What this does."""
 
@@ -73,8 +50,9 @@ class DecisionTreeWrapper(object):
 
 class AdaBoost():
     """
-    So, annoyingly, the algorithm we've been taught only works for the two
-    class problem. This paper [1] https://web.stanford.edu/~hastie/Papers/samme.pdf
+    So, as far as I can tell, the algorithm we were taught in class only works
+    for two classes. This paper
+    https://web.stanford.edu/~hastie/Papers/samme.pdf
     seems to present an effective mutliclass algorithm
     """
 
@@ -112,7 +90,7 @@ class AdaBoost():
         num_points = len(labels)
         self.weights = np.ones((num_points,)) / num_points
 
-    def boost(self, learner, M=1000):
+    def boost(self, learner, filename="ErrorRateOverTime.png", M=1000):
         """
         learner : function : data -> label
 
@@ -141,7 +119,6 @@ class AdaBoost():
         plt.plot(unweighted_errors)
         plt.xlabel("Iteration")
         plt.ylabel("The erorr rate")
-        filename = "ErrorRateOverTime.png"
         plt.savefig(filename)
         print("figure written to {}".format(filename))
         plt.pause(2)
@@ -198,40 +175,48 @@ class AdaBoost():
         self.weights /= np.sum(self.weights)  # normalize
 
 
-n_samples = len(digits.images)
-data = digits.images.reshape(n_samples, -1)
-data = data / 255
+# Load the digits dataset
+NUM_ESTIMATORS = 500
+for dataset_name in ["digits", "iris"]:
+    print("Doing experiments for the {} dataset\n".format(dataset_name))
+    if dataset_name == "iris":
+        mydataset = datasets.load_iris()
+    elif dataset_name == "digits":
+        mydataset = datasets.load_digits()
 
-X_train, X_test, y_train, y_test = train_test_split(
-    data, digits.target, test_size=0.2, random_state=42)
+    # normalize to [0, 1]
+    mydataset.data /= np.max(mydataset.data)
+    X_train, X_test, y_train, y_test = train_test_split(
+        mydataset.data, mydataset.target, test_size=0.2, random_state=42)
 
-NUM_ESTIMATORS = 50
-#  experiments, decision tree
-print("Decision tree tests")
-decision_tree = tree.DecisionTreeClassifier(
-    max_depth=2)  # Try to make it worse, it was too good
-my_adaboost = AdaBoost(X_train, y_train)
-my_adaboost.boost(decision_tree, M=NUM_ESTIMATORS)
-my_adaboost.predict_final_model(X_test, y_test)
+    #  experiments, decision tree
+    print("Decision tree tests for {}".format(dataset_name))
+    decision_tree = tree.DecisionTreeClassifier(
+        max_depth=2)  # Try to make it worse, it was too good
+    my_adaboost = AdaBoost(X_train, y_train)
+    my_adaboost.boost(decision_tree, M=NUM_ESTIMATORS,
+                      filename="{}DecisionTreeErrorRate.png".format(dataset_name))
+    my_adaboost.predict_final_model(X_test, y_test)
 
-abc = AdaBoostClassifier(
-    n_estimators=NUM_ESTIMATORS, base_estimator=decision_tree, learning_rate=1)
-model = abc.fit(X_train, y_train)
-y_pred = model.predict(X_test)
-print("Accuracy for scikit learn: {}".format(
-    metrics.accuracy_score(y_test, y_pred)))
+    abc = AdaBoostClassifier(
+        n_estimators=NUM_ESTIMATORS, base_estimator=decision_tree, learning_rate=1)
+    model = abc.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+    print("Accuracy for scikit learn: {}".format(
+        metrics.accuracy_score(y_test, y_pred)))
 
-# svm
-print("\nSVC tests")
-svc = SVC(probability=True, kernel='linear')
+    # svm
+    print("\nSVC tests for {}".format(dataset_name))
+    svc = SVC(probability=True, kernel='linear')
 
-my_adaboost = AdaBoost(X_train, y_train)
-my_adaboost.boost(svc, M=NUM_ESTIMATORS)
-my_adaboost.predict_final_model(X_test, y_test)
+    my_adaboost = AdaBoost(X_train, y_train)
+    my_adaboost.boost(svc, M=NUM_ESTIMATORS,
+                      filename="{}SVCErrorRate.png".format(dataset_name))
+    my_adaboost.predict_final_model(X_test, y_test)
 
-abc = AdaBoostClassifier(
-    n_estimators=NUM_ESTIMATORS, base_estimator=svc, learning_rate=1)
-model = abc.fit(X_train, y_train)
-y_pred = model.predict(X_test)
-print("Accuracy for scikit learn: {}".format(
-    metrics.accuracy_score(y_test, y_pred)))
+    abc = AdaBoostClassifier(
+        n_estimators=NUM_ESTIMATORS, base_estimator=svc, learning_rate=1)
+    model = abc.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+    print("Accuracy for scikit learn: {}".format(
+        metrics.accuracy_score(y_test, y_pred)))
