@@ -10,32 +10,7 @@ from sklearn.svm import SVC
 import pdb
 
 
-<< << << < HEAD
-== == == =
-# Code source: Gaël Varoquaux
-# Modified for documentation by Jaques Grobler
-# License: BSD 3 clause
-
-
-# Display the first digit
-#plt.figure(1, figsize=(3, 3))
-##plt.imshow(digits.images[-1], cmap=plt.cm.gray_r, interpolation='nearest')
-# plt.show()
-
-
-# Reshape, normalize
-
-"""
-clf = tree.DecisionTreeClassifier()
-clf = clf.fit(X_train, y_train)
-y_pred = clf.predict(X_test)
-print(metrics.accuracy_score(y_test, y_pred)) """
-
-
->>>>>> > 862783b5d2b90ce34ce0f5ebf061e3934e3edd0f
-
-
-class DecisionTreeWrapper(object):
+class DecisionTreeWrapper():
     """What this does."""
 
     def __init__(self, test_size=0.2):
